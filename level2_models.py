@@ -87,3 +87,66 @@ def stable_event_id(raw_line: str, source: str = "nginx") -> str:
 def detection_id(rule: str, event_ids: list[str]) -> str:
     payload = json.dumps([rule, *sorted(event_ids)], separators=(",", ":"))
     return "det-" + hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def correlation_id(source_ip: str, detection_ids: list[str]) -> str:
+    payload = json.dumps([source_ip, *sorted(detection_ids)], separators=(",", ":"))
+    return "cor-" + hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+@dataclass
+class Correlation:
+    correlation_id: str
+    source_ip: str
+    start_time: str
+    end_time: str
+    related_event_ids: list[str] = field(default_factory=list)
+    related_detection_ids: list[str] = field(default_factory=list)
+    summary: str = ""
+    severity: str = "medium"
+    confidence: str = "medium"
+    stages_observed: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class RiskAssessment:
+    score: int
+    severity: str
+    breakdown: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class InvestigationResult:
+    investigation_id: str
+    target: str
+    start_time: str
+    end_time: str
+    events: list[SecurityEvent] = field(default_factory=list)
+    detections: list[Detection] = field(default_factory=list)
+    correlations: list[Correlation] = field(default_factory=list)
+    mappings: list[MitreMapping] = field(default_factory=list)
+    timeline: list[TimelineEntry] = field(default_factory=list)
+    risk: RiskAssessment = field(default_factory=lambda: RiskAssessment(0, "Low"))
+    level1_context: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "investigation_id": self.investigation_id,
+            "target": self.target,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "events": [event.to_dict() for event in self.events],
+            "detections": [detection.to_dict() for detection in self.detections],
+            "correlations": [corr.to_dict() for corr in self.correlations],
+            "mappings": [mapping.to_dict() for mapping in self.mappings],
+            "timeline": [entry.to_dict() for entry in self.timeline],
+            "risk": self.risk.to_dict(),
+            "level1_context": self.level1_context,
+        }
+

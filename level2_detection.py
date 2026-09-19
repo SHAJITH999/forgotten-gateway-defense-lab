@@ -18,11 +18,18 @@ DISCOVERY_PATHS = ("/users", "/user", "/accounts", "/account", "/api/users", "/a
 TRANSFER_HINTS = ("/export", "/download", "/backup", "/dump", "/exfil")
 
 
-def _timestamp(value: str) -> datetime:
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
-    except ValueError:
+def _timestamp(value: str | None) -> datetime:
+    if not value or not isinstance(value, str):
         return datetime.min
+    try:
+        clean = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(clean).replace(tzinfo=None)
+    except (ValueError, TypeError):
+        try:
+            return datetime.strptime(value.split(".")[0], "%Y-%m-%d %H:%M:%S")
+        except (ValueError, IndexError):
+            return datetime.min
+
 
 
 def _detection(rule: str, severity: str, reason: str, events: list[SecurityEvent], confidence: str, technique: str | None) -> Detection:
