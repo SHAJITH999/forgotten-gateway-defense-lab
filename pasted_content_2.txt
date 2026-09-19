@@ -1,0 +1,586 @@
+You are modifying an EXISTING cybersecurity project. Do NOT rebuild the project from scratch and do NOT remove or break any existing Level 1 functionality.
+
+PROJECT CONTEXT
+---------------
+The current solution implements LEVEL 1 of a cybersecurity assessment for a fictional Community Hospital HMS.
+
+LEVEL 1 IS ALREADY IMPLEMENTED:
+- Nmap integration
+- Network/service discovery
+- Port scanning
+- Service/version detection
+- Parsing Nmap results
+- Storing scan observations
+- Comparing observed vs expected exposure
+- Existing Level 1 security/network exposure dashboard
+
+The existing Level 1 functionality must remain fully operational.
+
+The next requirement is LEVEL 2: CYBERSECURITY — "How the Attack Happened".
+
+The supplied problem statement defines Level 2 as:
+1. Attack timeline reconstruction
+2. Security event observation
+3. MITRE ATT&CK technique mapping
+
+The scenario contains these stages:
+- 08:10: External services are identified/mapped
+- 08:24: An obsolete internet-facing appliance is exploited for initial access
+- 09:05: Access is validated and account/data discovery occurs
+- 10:40: Collection and limited movement occurs
+- 13:15: A defender detects anomalous activity
+- 15:00: Access is revoked, affected systems/accounts are contained, and evidence is preserved
+
+The problem statement explicitly maps:
+- T1190 — Exploit Public-Facing Application
+- T1087 — Account Discovery
+- T1041 — Exfiltration Over C2 Channel
+- T1071.001 — Web Protocols
+
+
+CURRENT LAB ARCHITECTURE
+------------------------
+The vulnerable HMS is running locally on a MAC.
+
+Architecture:
+
+MAC:
+    Nginx
+      ↓
+    Vulnerable HMS web application
+      ↓
+    Nginx access.log / error.log
+      ↓
+    Level 2 log collector
+
+WINDOWS:
+    Existing cybersecurity GUI/dashboard
+      ↓
+    Existing Level 1 Nmap dashboard
+      ↓
+    New Level 2 attack-monitoring dashboard
+
+The HMS is served through Nginx on localhost.
+
+IMPORTANT:
+Do NOT replace the HMS.
+Do NOT introduce unnecessary infrastructure.
+Do NOT deploy a full SIEM.
+Do NOT perform real attacks.
+This is a controlled defensive training/lab environment.
+
+
+OBJECTIVE
+---------
+Extend the EXISTING application with a Level 2 cybersecurity monitoring module.
+
+The main idea is:
+
+Nginx logs
+    ↓
+Log Collector
+    ↓
+Log Parser
+    ↓
+Normalized Security Events
+    ↓
+Detection/Correlation Engine
+    ↓
+MITRE ATT&CK Mapping
+    ↓
+Attack Timeline
+    ↓
+Level 2 Dashboard
+
+Level 1 remains:
+
+Nmap
+    ↓
+Scan Results
+    ↓
+Exposure/Service Dashboard
+
+
+PHASE 1 — INSPECT EXISTING PROJECT
+----------------------------------
+Before modifying anything:
+
+1. Inspect the complete existing codebase.
+2. Identify:
+   - frontend framework
+   - backend framework
+   - database
+   - existing API endpoints
+   - Nmap implementation
+   - Nmap result parser
+   - existing database schema/models
+   - existing Level 1 dashboard components
+3. Understand the existing architecture.
+4. Reuse existing components, conventions, API patterns and database wherever practical.
+5. Do NOT rewrite working Level 1 functionality.
+
+First determine the cleanest integration point for Level 2.
+
+
+PHASE 2 — NGINX LOG COLLECTION
+------------------------------
+Add a lightweight log collector for the Mac HMS environment.
+
+The collector should support Nginx logs, especially:
+
+- access.log
+- error.log
+
+The collector should be capable of:
+- reading new log entries
+- processing entries incrementally
+- avoiding duplicate events
+- retaining timestamps
+- preserving the original/raw log entry
+- forwarding parsed events to the existing backend
+
+Do not assume a fixed Nginx installation path.
+
+Provide configuration for the log paths so they can be changed easily.
+
+Example paths may include:
+
+/opt/homebrew/var/log/nginx/access.log
+/opt/homebrew/var/log/nginx/error.log
+
+but the implementation must allow configuration.
+
+For development, also support reading a supplied/sample log file so the system can be tested without requiring a live Nginx process.
+
+
+PHASE 3 — NGINX LOG PARSER
+--------------------------
+Parse Nginx access-log entries into structured events.
+
+Extract fields where available:
+
+- timestamp
+- source IP
+- HTTP method
+- requested path
+- HTTP protocol
+- status code
+- response size
+- referrer
+- user agent
+- host
+- raw log line
+
+Example raw event:
+
+127.0.0.1 - - [16/Sep/2026:23:58:31 +0530]
+"POST /login HTTP/1.1" 401 1234
+
+Convert it into something similar to:
+
+{
+  "timestamp": "...",
+  "source": "nginx",
+  "event_type": "http_request",
+  "source_ip": "127.0.0.1",
+  "method": "POST",
+  "path": "/login",
+  "status": 401,
+  "user_agent": "...",
+  "raw_log": "..."
+}
+
+Keep raw evidence available.
+
+
+PHASE 4 — NORMALIZED EVENT MODEL
+--------------------------------
+Create a common event schema so future collectors can be added later.
+
+Use a structure similar to:
+
+{
+  "event_id": "...",
+  "timestamp": "...",
+  "source": "nginx",
+  "source_type": "web_server",
+  "event_type": "http_request",
+  "source_ip": "...",
+  "destination": "...",
+  "destination_port": 443,
+  "method": "GET",
+  "path": "/login",
+  "status": 200,
+  "severity": "low",
+  "raw_event": "...",
+  "mitre_technique": null,
+  "detection_reason": null
+}
+
+Do not force MITRE mappings onto every normal event.
+
+A raw HTTP request is an event.
+A detected suspicious pattern is a security detection.
+
+
+PHASE 5 — SECURITY EVENT DETECTION
+----------------------------------
+Implement a simple transparent detection/correlation layer.
+
+Do NOT claim that a single HTTP request proves a real attack.
+
+Use rule-based detection appropriate for a controlled training environment.
+
+Examples:
+
+1. Repeated failed authentication requests
+   - Multiple POST /login requests
+   - HTTP 401/403 responses
+   - Correlate within a configurable time window
+
+2. Suspicious access to administrative paths
+   - /admin
+   - /administrator
+   - /management
+   - etc.
+
+3. Suspicious web request patterns
+   - unusual probing
+   - repeated access to sensitive application paths
+   - abnormal request frequency
+
+4. Unusual outbound/transfer behavior if application logs provide evidence
+
+Every detection must contain:
+- timestamp
+- severity
+- reason
+- related events
+- source IP
+- detection rule
+- confidence
+- MITRE technique if applicable
+
+Avoid automatically labeling generic suspicious strings as successful exploitation.
+
+
+PHASE 6 — MITRE ATT&CK MAPPING
+------------------------------
+Add MITRE ATT&CK mapping to detected activity.
+
+At minimum support the techniques specified by the problem:
+
+T1190
+Exploit Public-Facing Application
+
+T1087
+Account Discovery
+
+T1041
+Exfiltration Over C2 Channel
+
+T1071.001
+Web Protocols
+
+Mappings must be explainable.
+
+For each mapping show:
+- technique ID
+- technique name
+- why the event was mapped
+- supporting event(s)
+- timestamp
+- confidence
+
+Do not fabricate evidence.
+
+If the available Nginx logs alone cannot establish a particular technique, mark it as:
+"insufficient evidence"
+rather than falsely claiming detection.
+
+
+PHASE 7 — ATTACK TIMELINE
+-------------------------
+Create a Level 2 attack timeline.
+
+Timeline entries should contain:
+
+- timestamp
+- event
+- source
+- severity
+- description
+- MITRE technique
+- evidence/event IDs
+
+Example presentation:
+
+08:10
+Reconnaissance
+External service identified
+
+08:24
+Initial Access
+T1190 — Exploit Public-Facing Application
+
+09:05
+Discovery
+T1087 — Account Discovery
+
+10:40
+Collection / suspicious movement
+
+13:15
+Detection
+Anomalous activity detected
+
+15:00
+Containment
+Access revoked and evidence preserved
+
+IMPORTANT:
+The above timeline is the fictional scenario defined by the problem statement.
+
+The system should distinguish:
+- scenario/demo events
+from
+- events actually observed from Nginx logs.
+
+Provide a demo/simulation mode if necessary so the full Level 2 timeline can be demonstrated without performing an actual attack.
+
+
+PHASE 8 — LEVEL 2 DASHBOARD
+---------------------------
+Add a separate Level 2 section/page to the existing GUI.
+
+Do NOT replace the existing Level 1 dashboard.
+
+Level 1:
+"Network Exposure"
+
+Level 2:
+"Attack Reconstruction"
+
+Level 2 dashboard should contain:
+
+1. Attack Timeline
+   - chronological event visualization
+
+2. Security Events
+   - searchable/filterable event table
+
+3. MITRE ATT&CK
+   - technique ID
+   - technique name
+   - evidence
+   - confidence
+
+4. Alerts
+   - severity
+   - detection reason
+   - source IP
+   - timestamp
+
+5. Event Details
+   - raw Nginx log
+   - parsed fields
+   - detection information
+   - linked events
+
+6. Basic statistics
+   - total events
+   - detected events
+   - critical/high/medium/low events
+   - MITRE techniques observed
+
+
+PHASE 9 — CONNECT LEVEL 1 AND LEVEL 2
+-------------------------------------
+Integrate the existing Nmap results with Level 2 as contextual information.
+
+For example:
+
+Level 1:
+443 HTTPS
+Nginx
+Exposed service
+
+Level 2:
+HTTP activity observed against the exposed service
+
+The UI should allow the user to understand:
+
+NETWORK EXPOSURE
+        ↓
+OBSERVED ACTIVITY
+        ↓
+SECURITY EVENT
+        ↓
+MITRE TECHNIQUE
+        ↓
+ATTACK TIMELINE
+
+Do NOT claim that Nmap alone detected an attack.
+
+Nmap establishes exposure/context.
+Logs establish observed activity.
+
+
+PHASE 10 — BACKEND API
+----------------------
+Add APIs following the existing project's architecture.
+
+Suggested functionality:
+
+POST /api/logs/ingest
+GET  /api/events
+GET  /api/events/:id
+GET  /api/alerts
+GET  /api/timeline
+GET  /api/mitre
+GET  /api/level2/summary
+
+Adapt endpoint names to the existing project's conventions instead of blindly creating duplicates.
+
+
+PHASE 11 — DATABASE
+-------------------
+Reuse the existing database.
+
+If necessary, add tables/models such as:
+
+events
+security_alerts
+attack_timeline
+mitre_mappings
+
+Keep relationships between:
+- raw event
+- normalized event
+- alert
+- MITRE technique
+- timeline entry
+
+Do not duplicate data unnecessarily.
+
+
+PHASE 12 — TESTING
+------------------
+Create a safe test environment.
+
+Use:
+- synthetic Nginx logs
+- normal HMS requests
+- repeated failed login events
+- simulated attack timeline events
+
+Do NOT perform destructive activity against the HMS.
+
+Verify:
+
+1. Nginx logs are collected.
+2. Logs are parsed correctly.
+3. Duplicate events are avoided.
+4. Events are stored.
+5. Detection rules work.
+6. MITRE mappings appear correctly.
+7. Timeline is chronological.
+8. Raw evidence remains accessible.
+9. Level 1 Nmap functionality still works.
+10. Level 1 and Level 2 dashboards work independently.
+
+
+UI/UX REQUIREMENTS
+------------------
+Keep the existing visual language of the project.
+
+Add clear navigation:
+
+[Level 1: Network Exposure]
+[Level 2: Attack Reconstruction]
+
+Use a professional cybersecurity dashboard.
+
+Do not overload the interface with unnecessary charts.
+
+Prioritize:
+- timeline
+- alerts
+- events
+- MITRE mapping
+- evidence
+
+
+SECURITY / ETHICS
+-----------------
+This is a fictional defensive cybersecurity training environment.
+
+Do not add:
+- malware
+- persistence
+- credential theft
+- destructive exploitation
+- real data exfiltration
+- unauthorized access functionality
+
+The goal is defensive monitoring and attack reconstruction.
+
+
+SUCCESS CRITERIA
+---------------
+The implementation is complete when:
+
+LEVEL 1:
+Nmap → scan → parse → exposure dashboard
+
+continues working exactly as before.
+
+LEVEL 2:
+Nginx logs
+→ collector
+→ parser
+→ normalized events
+→ detection
+→ MITRE mapping
+→ attack timeline
+→ Level 2 dashboard
+
+is working end-to-end.
+
+A user should be able to demonstrate:
+
+1. Nmap discovers the HMS's exposed service.
+2. Nginx generates HTTP logs from normal/test activity.
+3. The collector receives those logs.
+4. The backend converts them into normalized events.
+5. Detection rules identify relevant suspicious patterns.
+6. Events are correlated.
+7. Appropriate MITRE ATT&CK techniques are displayed.
+8. The activity appears chronologically in the Level 2 attack timeline.
+9. The original Nginx log can be inspected as evidence.
+10. The existing Level 1 dashboard remains intact.
+
+
+IMPLEMENTATION APPROACH
+-----------------------
+Do NOT immediately start coding.
+
+First:
+1. Inspect the existing repository.
+2. Explain the existing architecture briefly.
+3. Identify exactly where Level 2 should be integrated.
+4. List the files/components you intend to modify/create.
+5. Then implement incrementally.
+6. Run/test the existing application after each major change.
+7. Fix integration issues rather than replacing existing functionality.
+
+At the end, provide:
+- files created
+- files modified
+- APIs added
+- database changes
+- how to run the Mac log collector
+- how to configure the Nginx log paths
+- how to run the Windows dashboard/backend
+- how to generate safe test events
+- how Level 1 and Level 2 connect

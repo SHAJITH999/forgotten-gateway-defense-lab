@@ -1,0 +1,1 @@
+# No third-party dependencies. Tkinter and the Python standard library are used.

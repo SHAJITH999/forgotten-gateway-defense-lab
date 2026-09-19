@@ -1,0 +1,617 @@
+Build a standalone desktop cybersecurity application called:
+
+"Network Exposure Assessment"
+
+IMPORTANT:
+This must be a REAL DESKTOP PYTHON GUI application.
+
+DO NOT build:
+- A React application
+- A web application
+- A localhost dashboard
+- An Express server
+- A browser-based UI
+- A fake/mock Nmap dashboard
+
+The application must run directly on the user's desktop as a Python GUI.
+
+==================================================
+1. TECHNOLOGY
+==================================================
+
+Use:
+
+- Python 3
+- Tkinter / ttk for the GUI
+- subprocess for executing Nmap
+- XML parsing using Python's built-in xml.etree.ElementTree
+- threading so the GUI never freezes during a scan
+
+Avoid unnecessary dependencies.
+
+The application should be runnable with:
+
+python3 main.py
+
+==================================================
+2. PURPOSE
+==================================================
+
+The application is a Level 1 Network Exposure Assessment tool.
+
+Its purpose is:
+
+User enters an authorized target IP
+        ↓
+Python GUI executes Nmap
+        ↓
+Nmap performs the real scan
+        ↓
+Python captures Nmap XML output
+        ↓
+Python parses the result
+        ↓
+GUI displays actual discovered services
+
+The application must NEVER fabricate scan results.
+
+==================================================
+3. GUI DESIGN
+==================================================
+
+Create a professional cybersecurity/SOC-style desktop interface.
+
+Window title:
+
+"Network Exposure Assessment"
+
+Main heading:
+
+"Network Exposure Assessment"
+
+Subtitle:
+
+"Discover network services exposed by an authorized target."
+
+Top section:
+
+Target IP Address
+
+[________________________]
+
+[ START NMAP SCAN ]
+
+The target IP must be entered by the user.
+
+DO NOT hardcode any IP address.
+
+==================================================
+4. NMAP COMMAND
+==================================================
+
+The application should execute this scan:
+
+sudo nmap -sS -sU -sV \
+-p T:22,80,443,3000,445,49152,U:53 \
+-oX - <TARGET_IP>
+
+Replace:
+
+<TARGET_IP>
+
+with the IP entered by the user.
+
+Use subprocess with an argument list.
+
+DO NOT construct a shell command using string concatenation.
+
+Preferred implementation:
+
+subprocess.Popen(
+    [
+        "sudo",
+        "-n",
+        "nmap",
+        "-sS",
+        "-sU",
+        "-sV",
+        "-p",
+        "T:22,80,443,3000,445,49152,U:53",
+        "-oX",
+        "-",
+        target_ip
+    ],
+    ...
+)
+
+The "-n" option means sudo must not interactively ask for a password.
+
+If sudo permission is unavailable, show a clear GUI error explaining:
+
+"Nmap requires elevated privileges for this scan. Configure appropriate sudo permissions for Nmap or run the application from an authorized privileged environment."
+
+DO NOT store or request the user's sudo password.
+
+==================================================
+5. IP VALIDATION
+==================================================
+
+Validate the target before executing Nmap.
+
+Use Python's ipaddress module.
+
+Accept:
+
+IPv4
+IPv6
+
+Reject:
+
+- Empty input
+- Invalid IP addresses
+- Shell metacharacters
+- Arbitrary commands
+- Hostnames unless explicitly supported later
+
+Example:
+
+192.168.1.100
+
+must be accepted.
+
+Something such as:
+
+192.168.1.100; rm -rf /
+
+must NEVER reach subprocess.
+
+==================================================
+6. REAL NMAP OUTPUT
+==================================================
+
+Use Nmap XML output:
+
+-oX -
+
+This sends XML to stdout.
+
+Do NOT parse the human-readable terminal output.
+
+Parse the XML using:
+
+xml.etree.ElementTree
+
+Extract:
+
+- Port
+- Protocol
+- State
+- Service name
+- Product
+- Version
+- Extra information where available
+
+Only display ports whose Nmap state is:
+
+open
+
+Do not invent results.
+
+==================================================
+7. RESULTS TABLE
+==================================================
+
+After scanning, display a table:
+
+Port | Protocol | State | Service | Product | Version
+
+Example structure:
+
+22 | TCP | open | ssh | OpenSSH | ...
+53 | UDP | open | domain | dnsmasq | ...
+80 | TCP | open | http | nginx | ...
+443 | TCP | open | https | nginx | ...
+
+IMPORTANT:
+
+These are examples of the UI structure only.
+
+The application must populate the table ONLY from the actual Nmap result.
+
+==================================================
+8. SUMMARY CARDS
+==================================================
+
+Display summary cards:
+
+OPEN PORTS
+[number]
+
+TCP SERVICES
+[number]
+
+UDP SERVICES
+[number]
+
+TOTAL SERVICES
+[number]
+
+These values must be calculated from the parsed Nmap result.
+
+==================================================
+9. SCAN STATUS
+==================================================
+
+Display:
+
+Ready
+
+while idle.
+
+During scan:
+
+Scanning <TARGET_IP>...
+
+Running Nmap service discovery...
+
+Use an indeterminate progress indicator.
+
+After successful scan:
+
+Scan completed
+
+After failure:
+
+Scan failed
+
+Never freeze the GUI.
+
+Run Nmap in a background thread.
+
+==================================================
+10. RAW NMAP OUTPUT
+==================================================
+
+Add a collapsible section:
+
+"Raw Nmap XML"
+
+Display the actual XML returned by Nmap.
+
+This is useful for transparency and debugging.
+
+Also optionally provide:
+
+"Copy Raw Output"
+
+button.
+
+==================================================
+11. SERVICE DETAILS
+==================================================
+
+When the user selects a row in the table, display a details panel containing:
+
+Target IP
+Port
+Protocol
+State
+Service
+Product
+Version
+Extra Information
+
+Everything shown must originate from Nmap.
+
+==================================================
+12. SCAN HISTORY
+==================================================
+
+Maintain a simple local scan history.
+
+For each scan store:
+
+- Target IP
+- Timestamp
+- Scan status
+- Number of open ports
+
+Allow the user to select a previous scan and view its results.
+
+Use a simple local JSON file for history.
+
+Example:
+
+scan_history.json
+
+Do not require a database server.
+
+==================================================
+13. ERROR HANDLING
+==================================================
+
+Handle:
+
+1. Nmap not installed
+
+Show:
+
+"Nmap was not found on this system."
+
+2. sudo password required
+
+Show:
+
+"Nmap requires elevated privileges. Configure passwordless execution for Nmap or run the scanner with appropriate privileges."
+
+3. Target unreachable
+
+Show:
+
+"Target could not be reached or returned no usable scan results."
+
+4. Nmap timeout
+
+Set a reasonable timeout, such as 180 seconds.
+
+5. Invalid IP
+
+Show:
+
+"Enter a valid IP address."
+
+6. Malformed XML
+
+Show:
+
+"Nmap returned an invalid or incomplete XML result."
+
+7. Permission errors
+
+Show a useful explanation.
+
+Never display a Python traceback directly to the user.
+
+==================================================
+14. NO MOCK DATA
+==================================================
+
+This is extremely important.
+
+Do NOT create:
+
+fake open ports
+fake services
+fake versions
+fake vulnerabilities
+fake severity scores
+fake scan timestamps
+fake findings
+
+The application must show:
+
+REAL NMAP DATA
+
+If Nmap finds nothing open, the dashboard must say:
+
+"No open services discovered."
+
+==================================================
+15. OPTIONAL EXPECTED POLICY
+==================================================
+
+Do NOT mix expected policy with observed Nmap results.
+
+If a policy comparison section is implemented, clearly separate:
+
+OBSERVED
+
+Information obtained from Nmap.
+
+EXPECTED
+
+Configured security policy.
+
+Example:
+
+OBSERVED:
+22/TCP open
+Service: SSH
+
+EXPECTED:
+SSH should be restricted to the administrative network.
+
+Do not claim that the policy was violated merely because the port is open.
+
+==================================================
+16. DESKTOP APPLICATION STRUCTURE
+==================================================
+
+Organize the project cleanly:
+
+network-exposure-assessment/
+│
+├── main.py
+├── scanner.py
+├── parser.py
+├── models.py
+├── history.py
+├── ui/
+│   └── dashboard.py
+├── scan_history.json
+├── requirements.txt
+└── README.md
+
+Keep the Nmap execution logic separate from the GUI.
+
+Suggested responsibilities:
+
+scanner.py
+- Validate target
+- Execute Nmap
+- Return XML
+- Handle timeout/errors
+
+parser.py
+- Parse Nmap XML
+- Convert XML into structured service objects
+
+models.py
+- Service
+- ScanResult
+- ScanHistory
+
+history.py
+- Save/load scan history
+
+dashboard.py
+- Tkinter UI
+
+main.py
+- Start application
+
+==================================================
+17. COMMAND DISPLAY
+==================================================
+
+Add a small section showing:
+
+"Nmap Command"
+
+For example:
+
+sudo -n nmap -sS -sU -sV -p T:22,80,443,3000,445,49152,U:53 -oX - <TARGET_IP>
+
+Do not reveal or store any sudo password.
+
+The target IP displayed in the command should dynamically update when the user enters an IP.
+
+==================================================
+18. REFRESH / NEW SCAN
+==================================================
+
+Add:
+
+[ New Scan ]
+
+This clears the previous result and allows another IP to be scanned.
+
+The user should be able to scan different authorized machines without modifying the source code.
+
+==================================================
+19. UI PRINCIPLES
+==================================================
+
+Use a professional security dashboard appearance:
+
+- Dark desktop interface
+- Clear typography
+- Compact information cards
+- Service table
+- Status indicators
+- Good spacing
+- Responsive resizing
+- Clear scan progress
+- Clear errors
+
+Avoid excessive animations.
+
+The application should feel like a small professional network security utility rather than a generic CRUD application.
+
+==================================================
+20. SECURITY REQUIREMENTS
+==================================================
+
+The target is user-controlled input.
+
+Therefore:
+
+- Validate IP using ipaddress.ip_address()
+- Never use shell=True
+- Never interpolate the target into a shell command
+- Never execute arbitrary user input
+- Never accept arbitrary command-line flags from the user
+- Use a fixed Nmap argument list
+- Set a scan timeout
+- Do not collect passwords
+- Do not transmit scan results to external services
+
+The application is intended for authorized network/security testing.
+
+==================================================
+21. README
+==================================================
+
+Create a README explaining:
+
+Installation:
+
+1. Verify Python:
+
+python3 --version
+
+2. Verify Nmap:
+
+nmap --version
+
+3. Run:
+
+python3 main.py
+
+Explain that SYN/UDP scanning may require elevated privileges.
+
+Explain that the application uses:
+
+sudo -n
+
+and therefore requires appropriate local privilege configuration.
+
+Do NOT tell users to disable system security controls globally.
+
+==================================================
+22. FINAL ACCEPTANCE TEST
+==================================================
+
+Before considering the project complete, test this workflow:
+
+1. Start:
+
+python3 main.py
+
+2. GUI opens.
+
+3. Enter:
+
+192.168.x.x
+
+4. Click:
+
+START NMAP SCAN
+
+5. Python executes REAL Nmap.
+
+6. Nmap XML is captured.
+
+7. XML is parsed.
+
+8. Actual open TCP/UDP services appear in the table.
+
+9. Summary counts match the table.
+
+10. Raw Nmap XML can be viewed.
+
+11. Scan history records the scan.
+
+12. Enter a different IP.
+
+13. Run another scan.
+
+14. Results update to the new target.
+
+The final application must be a standalone Python desktop GUI.
+
+There must be NO localhost server requirement.
+There must be NO browser requirement.
+There must be NO React frontend.
+There must be NO hardcoded target IP.
+There must be NO fake scan data.

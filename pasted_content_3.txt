@@ -1,0 +1,194 @@
+IMPORTANT ARCHITECTURE CORRECTION
+
+Do NOT rebuild Level 1.
+
+Do NOT add mock data, synthetic logs, demo attack events, or a simulated attack timeline.
+
+The current Level 2 implementation incorrectly assumes that the Windows Tkinter application can directly read Nginx log files from the Mac filesystem.
+
+ACTUAL ENVIRONMENT:
+
+MAC:
+- Hosts the vulnerable HMS
+- HMS is served by Nginx
+- Nginx generates access.log and error.log
+- Nginx/HMS are local to the Mac
+
+WINDOWS:
+- Hosts the cybersecurity desktop application
+- Existing Level 1 Nmap dashboard runs here
+- Level 2 dashboard also runs here
+
+Therefore redesign Level 2 as a REAL remote telemetry architecture:
+
+MAC
+Nginx
+  ↓
+access.log / error.log
+  ↓
+lightweight Nginx log agent
+  ↓
+network transport
+  ↓
+WINDOWS
+Level 2 receiver
+  ↓
+event normalization
+  ↓
+detection/correlation
+  ↓
+MITRE ATT&CK mapping
+  ↓
+real attack timeline
+  ↓
+Tkinter GUI
+
+REQUIREMENTS:
+
+1. REMOVE the fictional DEMO SCENARIO functionality.
+
+2. REMOVE the synthetic sample-log workflow from the production UI.
+
+3. Do not generate fabricated security events.
+
+4. Do not populate the timeline with the predefined 08:10, 08:24, 09:05, 10:40, 13:15 and 15:00 events unless equivalent events are actually observed in the real telemetry.
+
+5. The problem statement timeline is a reference scenario, not mock data to be inserted into the application.
+
+6. Keep Nginx access.log and error.log as the primary telemetry sources.
+
+7. Create a small Mac-side collector/agent that:
+   - reads Nginx access.log
+   - reads Nginx error.log
+   - follows new entries incrementally
+   - handles log rotation/truncation
+   - prevents duplicate events
+   - preserves the raw log entry
+   - sends real events to the Windows application
+
+8. The Mac collector must NOT collect macOS unified/system logs.
+
+9. The Mac collector must NOT require arbitrary filesystem access from Windows.
+
+10. The Windows application must NOT directly access Mac filesystem paths such as:
+    /opt/homebrew/var/log/nginx/access.log
+
+11. Instead, Windows receives events explicitly transmitted by the Mac agent.
+
+12. Use a simple authenticated network transport appropriate for a controlled LAN lab. Do not expose an unauthenticated log-ingestion endpoint.
+
+13. Add configuration for:
+    - Windows receiver IP/hostname
+    - receiver port
+    - shared authentication/token
+    - Nginx access-log path
+    - Nginx error-log path
+
+14. The Windows receiver must validate incoming events.
+
+15. Preserve:
+    - event ID
+    - timestamp
+    - source IP
+    - destination/service if known
+    - HTTP method
+    - URI/path
+    - status code
+    - user agent
+    - source log
+    - raw event
+
+16. Keep the existing detection engine, but ensure detections operate only on REAL received events.
+
+17. Do not automatically claim an attack from a suspicious HTTP request.
+
+18. MITRE ATT&CK mappings must have an evidence-based status:
+    - Observed / supported
+    - Insufficient evidence
+    - Not mapped
+
+19. Specifically support the problem statement's techniques:
+    T1190
+    T1087
+    T1041
+    T1071.001
+
+20. Do not force these techniques onto events simply because they appear in the problem statement.
+
+21. The attack timeline must be generated only from real received events and detections.
+
+22. Every timeline event must link back to its underlying evidence/event ID.
+
+23. Keep Level 1 unchanged:
+    Nmap → XML → parser → exposure dashboard.
+
+24. Add Level 1 context to Level 2 where possible:
+    discovered host/service/port can be associated with observed Nginx activity.
+
+25. Do not claim that Nmap detected an attack.
+    Nmap provides exposure/context.
+    Nginx telemetry provides observed web activity.
+
+26. Keep the existing Tkinter interface.
+
+27. Add a clear:
+    LEVEL 1 — NETWORK EXPOSURE
+    LEVEL 2 — ATTACK RECONSTRUCTION
+
+28. Level 2 should contain:
+    - Live event stream
+    - Security alerts
+    - Real observed timeline
+    - MITRE ATT&CK mappings
+    - Event details
+    - Raw evidence
+    - Connection status of Mac collector
+    - Last event received
+    - Collector health
+
+29. Add a clear collector status:
+    CONNECTED
+    DISCONNECTED
+    LAST EVENT RECEIVED
+    EVENTS RECEIVED
+
+30. Do not show fake counts when there are no events.
+    Display zero/empty state honestly.
+
+31. Remove the synthetic-log file and demo-scenario UI if they are not needed for the real architecture.
+
+32. Update README with the actual deployment:
+
+    MAC:
+      Nginx + HMS + log collector
+
+    WINDOWS:
+      cybersecurity application + Level 2 receiver/dashboard
+
+33. Provide exact commands to start the Mac collector and Windows application.
+
+34. Test the complete pipeline using REAL Nginx requests to the HMS.
+
+35. Verify:
+    Nginx request
+      ↓
+    access.log
+      ↓
+    Mac collector
+      ↓
+    Windows receiver
+      ↓
+    normalized event
+      ↓
+    dashboard
+
+36. Do not perform exploitation or destructive testing.
+
+37. Do not add macOS system-log collection.
+
+IMPORTANT:
+The goal is a genuine defensive telemetry pipeline, not a simulated attack demonstration.
+
+Before coding, inspect the current Level 2 implementation and identify exactly what must be changed to transform the current local-log architecture into the Mac-agent → Windows-receiver architecture.
+
+Preserve all working Level 1 functionality.
