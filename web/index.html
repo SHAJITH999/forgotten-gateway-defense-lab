@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forgotten Gateway Defense Lab — Attack Reconstruction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #070d17;
+      --panel-bg: rgba(14, 23, 42, 0.75);
+      --panel-border: rgba(49, 208, 170, 0.15);
+      --panel-hover: rgba(22, 36, 59, 0.9);
+      --accent: #31d0aa;
+      --accent-glow: rgba(49, 208, 170, 0.35);
+      --accent-secondary: #3b82f6;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --danger: #f43f5e;
+      --warning: #f59e0b;
+      --info: #06b6d4;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(49, 208, 170, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.5) 0px, transparent 100%);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 20px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(11, 18, 32, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .brand-icon svg {
+      width: 24px;
+      height: 24px;
+      fill: #06131a;
+    }
+
+    .brand-title h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title p {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .scenario-select {
+      background: #0f192b;
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .scenario-select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #06131a;
+      box-shadow: 0 2px 10px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      background: #55e3c0;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    main {
+      padding: 28px 32px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Context Banner */
+    .context-banner {
+      background: linear-gradient(90deg, rgba(59, 130, 246, 0.12), rgba(49, 208, 170, 0.08));
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+    }
+
+    .context-badge {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(49, 208, 170, 0.4);
+    }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--text-main);
+      font-feature-settings: "tnum";
+    }
+
+    .kpi-value.risk-critical { color: var(--danger); text-shadow: 0 0 15px rgba(244, 63, 94, 0.4); }
+    .kpi-value.risk-high { color: #fb7185; }
+    .kpi-value.risk-medium { color: var(--warning); }
+    .kpi-value.risk-low { color: var(--accent); }
+
+    /* Tabs & Content */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      background: rgba(49, 208, 170, 0.1);
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    .data-table th {
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .data-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+
+    .data-table tr:hover {
+      background: var(--panel-hover);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-critical { background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.4); }
+    .badge-high { background: rgba(251, 113, 133, 0.2); color: #fb7185; border: 1px solid rgba(251, 113, 133, 0.4); }
+    .badge-medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-low { background: rgba(49, 208, 170, 0.2); color: #34d399; border: 1px solid rgba(49, 208, 170, 0.4); }
+    .badge-info { background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); }
+
+    .code-mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+    }
+
+    /* Modal / Details Box */
+    .details-box {
+      margin-top: 16px;
+      background: #08101d;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .custom-log-input {
+      width: 100%;
+      height: 120px;
+      background: #08101d;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      outline: none;
+      resize: vertical;
+      margin-bottom: 10px;
+    }
+
+    .custom-log-input:focus {
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <h1>Forgotten Gateway Defense Lab</h1>
+        <p>Attack Reconstruction & Security Detection — Localhost UI</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <select id="scenarioSelect" class="scenario-select">
+        <option value="multi_stage">Scenario: Multi-Stage Attack</option>
+        <option value="auth_anomaly">Scenario: Auth Anomaly</option>
+        <option value="account_discovery">Scenario: Account Discovery</option>
+        <option value="admin_probing">Scenario: Admin Probing</option>
+        <option value="normal">Scenario: Normal Traffic</option>
+      </select>
+      <button class="btn btn-primary" onclick="loadScenario()">Load Scenario</button>
+      <button class="btn btn-secondary" onclick="clearEvents()">Clear</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Context Banner -->
+    <div class="context-banner">
+      <div>
+        <span class="context-badge">Level 1 Scan Context</span>
+        <strong id="bannerTarget" style="margin-left: 10px;">Target: 127.0.0.1</strong>
+        <span id="bannerServices" style="color: var(--text-muted); margin-left: 12px;">Open: Port 80/TCP (nginx 1.21.6), Port 22/TCP (OpenSSH 8.2)</span>
+      </div>
+      <div style="font-size: 0.75rem; color: var(--text-dim);">Real-time Telemetry Pipeline Active</div>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Events</div>
+        <div class="kpi-value" id="kpiEvents">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Security Detections</div>
+        <div class="kpi-value" id="kpiDetections">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Correlated Chains</div>
+        <div class="kpi-value" id="kpiCorrelations">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Risk Assessment</div>
+        <div class="kpi-value" id="kpiRisk">0 (Low)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Observed MITRE Techniques</div>
+        <div class="kpi-value" id="kpiMitre">0</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('timeline')">Attack Timeline</button>
+      <button class="tab-btn" onclick="switchTab('correlations')">Correlated Chains</button>
+      <button class="tab-btn" onclick="switchTab('detections')">Security Detections</button>
+      <button class="tab-btn" onclick="switchTab('mitre')">MITRE ATT&CK</button>
+      <button class="tab-btn" onclick="switchTab('events')">Evidence Stream</button>
+      <button class="tab-btn" onclick="switchTab('ingest')">Ingest Raw Logs</button>
+    </div>
+
+    <!-- Tab 1: Timeline -->
+    <div id="tab-timeline" class="panel tab-content">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Source</th>
+            <th>Severity</th>
+            <th>Description</th>
+            <th>Technique</th>
+            <th>Evidence IDs</th>
+          </tr>
+        </thead>
+        <tbody id="timelineBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Tab 2: Correlations -->
+    <div id="tab-correlations" class="panel tab-content" style="display: none;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Source IP</th>
+            <th>Severity</th>
+            <th>Confidence</th>
+            <th>Stages Progression</th>
+            <th>Summary</th>
+          </tr>
+        </thead>
+        <tbody id="correlationsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Tab 3: Detections -->
+    <div id="tab-detections" class="panel tab-content" style="display: none;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Severity</th>
+            <th>Rule</th>
+            <th>Source IP</th>
+            <th>Reason</th>
+            <th>MITRE</th>
+          </tr>
+        </thead>
+        <tbody id="detectionsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Tab 4: MITRE ATT&CK -->
+    <div id="tab-mitre" class="panel tab-content" style="display: none;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Technique ID</th>
+            <th>Technique Name</th>
+            <th>Status</th>
+            <th>Confidence</th>
+            <th>Rationale</th>
+            <th>Evidence IDs</th>
+          </tr>
+        </thead>
+        <tbody id="mitreBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Tab 5: Evidence Stream -->
+    <div id="tab-events" class="panel tab-content" style="display: none;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Source IP</th>
+            <th>Method</th>
+            <th>Path</th>
+            <th>Status</th>
+            <th>Event ID</th>
+          </tr>
+        </thead>
+        <tbody id="eventsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Tab 6: Ingest Raw Logs -->
+    <div id="tab-ingest" class="panel tab-content" style="display: none;">
+      <h3 style="font-size: 1rem; margin-bottom: 8px;">Ingest Custom Nginx Access / Error Logs</h3>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Paste standard Nginx combined access log lines or error log lines. They will be parsed, normalized, and evaluated in real-time.</p>
+      <textarea id="rawLogInput" class="custom-log-input" placeholder='198.51.100.20 - - [19/Sep/2026:10:00:00 +0530] "POST /login HTTP/1.1" 401 128 "-" "TestScanner/1.0"'></textarea>
+      <button class="btn btn-primary" onclick="ingestLogs()">Parse & Ingest Logs</button>
+    </div>
+
+    <!-- Evidence Details Inspector -->
+    <div class="panel">
+      <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Selected Inspection Details</div>
+      <div id="detailsBox" class="details-box">Click any item in the tables above to inspect its verbatim evidence or detailed metadata...</div>
+    </div>
+  </main>
+
+  <script>
+    let currentData = null;
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        currentData = await res.json();
+        renderDashboard(currentData);
+      } catch (err) {
+        console.error('Error fetching status:', err);
+      }
+    }
+
+    function renderDashboard(data) {
+      const inv = data.investigation;
+      const l1 = data.level1;
+
+      // Banner
+      document.getElementById('bannerTarget').textContent = `Target: ${l1.target_ip}`;
+      const openServices = (l1.services || [])
+        .filter(s => s.state === 'open')
+        .map(s => `Port ${s.port}/${s.protocol} (${s.service} ${s.version || ''})`)
+        .join(', ');
+      document.getElementById('bannerServices').textContent = `Open Services: ${openServices || 'None'}`;
+
+      // KPIs
+      document.getElementById('kpiEvents').textContent = inv.events.length;
+      document.getElementById('kpiDetections').textContent = inv.detections.length;
+      document.getElementById('kpiCorrelations').textContent = inv.correlations.length;
+
+      const riskEl = document.getElementById('kpiRisk');
+      riskEl.textContent = `${inv.risk.score}/100 (${inv.risk.severity})`;
+      riskEl.className = 'kpi-value risk-' + inv.risk.severity.toLowerCase();
+
+      const observedMitre = inv.mappings.filter(m => m.status === 'observed').length;
+      document.getElementById('kpiMitre').textContent = observedMitre;
+
+      // Render Tables
+      renderTimeline(inv.timeline);
+      renderCorrelations(inv.correlations);
+      renderDetections(inv.detections);
+      renderMitre(inv.mappings);
+      renderEvents(inv.events);
+    }
+
+    function getSeverityBadge(sev) {
+      const s = (sev || 'info').toLowerCase();
+      return `<span class="badge badge-${s}">${sev}</span>`;
+    }
+
+    function renderTimeline(timeline) {
+      const tbody = document.getElementById('timelineBody');
+      tbody.innerHTML = '';
+      timeline.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => showDetails(item);
+        tr.innerHTML = `
+          <td class="code-mono">${item.timestamp}</td>
+          <td>${item.source}</td>
+          <td>${getSeverityBadge(item.severity)}</td>
+          <td>${item.description}</td>
+          <td>${item.mitre_technique || '—'}</td>
+          <td class="code-mono">${(item.evidence_event_ids || []).join(', ') || '—'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCorrelations(correlations) {
+      const tbody = document.getElementById('correlationsBody');
+      tbody.innerHTML = '';
+      correlations.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => showDetails(item);
+        tr.innerHTML = `
+          <td class="code-mono">${item.correlation_id}</td>
+          <td>${item.source_ip}</td>
+          <td>${getSeverityBadge(item.severity)}</td>
+          <td>${item.confidence}</td>
+          <td><strong>${item.stages_observed.join(' &rarr; ') || 'Single Stage'}</strong></td>
+          <td>${item.summary}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderDetections(detections) {
+      const tbody = document.getElementById('detectionsBody');
+      tbody.innerHTML = '';
+      detections.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => showDetails(item);
+        tr.innerHTML = `
+          <td class="code-mono">${item.timestamp}</td>
+          <td>${getSeverityBadge(item.severity)}</td>
+          <td><strong>${item.rule}</strong></td>
+          <td>${item.source_ip}</td>
+          <td>${item.reason}</td>
+          <td>${item.mitre_technique || '—'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderMitre(mappings) {
+      const tbody = document.getElementById('mitreBody');
+      tbody.innerHTML = '';
+      mappings.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => showDetails(item);
+        const statusBadge = item.status === 'observed' 
+          ? '<span class="badge badge-low">Observed</span>' 
+          : '<span class="badge badge-medium">Insufficient Evidence</span>';
+        tr.innerHTML = `
+          <td class="code-mono"><strong>${item.technique_id}</strong></td>
+          <td>${item.technique_name}</td>
+          <td>${statusBadge}</td>
+          <td>${item.confidence}</td>
+          <td>${item.why}</td>
+          <td class="code-mono">${(item.supporting_event_ids || []).join(', ') || '—'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderEvents(events) {
+      const tbody = document.getElementById('eventsBody');
+      tbody.innerHTML = '';
+      events.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => showDetails(item);
+        tr.innerHTML = `
+          <td class="code-mono">${item.timestamp}</td>
+          <td>${item.source_ip}</td>
+          <td><strong>${item.method}</strong></td>
+          <td class="code-mono">${item.path}</td>
+          <td>${item.status || '—'}</td>
+          <td class="code-mono">${item.event_id}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function showDetails(obj) {
+      document.getElementById('detailsBox').textContent = JSON.stringify(obj, null, 2);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(p => p.style.display = 'none');
+      event.target.classList.add('active');
+      document.getElementById('tab-' + tabId).style.display = 'block';
+    }
+
+    async function loadScenario() {
+      const sc = document.getElementById('scenarioSelect').value;
+      await fetch('/api/scenario/load', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario: sc })
+      });
+      fetchStatus();
+    }
+
+    async function clearEvents() {
+      await fetch('/api/clear', { method: 'POST' });
+      fetchStatus();
+    }
+
+    async function ingestLogs() {
+      const text = document.getElementById('rawLogInput').value;
+      if (!text.trim()) return;
+      await fetch('/api/logs/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ log_text: text })
+      });
+      document.getElementById('rawLogInput').value = '';
+      switchTab('timeline');
+      fetchStatus();
+    }
+
+    // Auto load on init
+    fetchStatus();
+  </script>
+</body>
+</html>
